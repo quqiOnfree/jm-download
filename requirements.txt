@@ -1,0 +1,4 @@
+jmcomic
+pyzipper
+Pillow
+fpdf

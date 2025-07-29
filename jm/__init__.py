@@ -1,11 +1,11 @@
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 from nonebot import on_command
-from nonebot.adapters.onebot.v11 import Message, MessageSegment
+from nonebot.adapters.onebot.v11 import Message, GroupMessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
+from nonebot.permission import Permission
 
 import random
-import asyncio
 import os
 from jmcomic import *
 
@@ -24,10 +24,18 @@ __plugin_meta__ = PluginMetadata(
 )
 
 config = get_plugin_config(Config)
+allow_groups = config.allow_groups
 
 jm_cmd = on_command("jm", aliases={"JM", "禁漫", "漫画"}, priority=10)
 @jm_cmd.handle()
-async def handle_jm_command(args: Message = CommandArg()):
+async def handle_jm_command(event: GroupMessageEvent | PrivateMessageEvent, args: Message = CommandArg()):
+    # 群聊检查
+    if isinstance(event, GroupMessageEvent):
+        # if event.sender.role != "admin" and event.sender.role != "owner" and event.group_id not in ALLOW_GROUPS:
+        #     await jm_cmd.finish("你所在的群不允许使用此功能")
+        if str(event.group_id) not in allow_groups:
+            await jm_cmd.finish("你所在的群不允许使用此功能：{}".format(event.group_id))
+
     # 获取用户输入的漫画ID
     comic_id = args.extract_plain_text().strip()
     
@@ -42,14 +50,13 @@ async def handle_jm_command(args: Message = CommandArg()):
     try:
         file = compress(int(comic_id), password)
         file_cq = "[CQ:file,file=file://{}]".format(file)
-        res = asyncio.create_task(jm_cmd.finish(message=Message(file_cq)))
-        await res
+        try:
+            await jm_cmd.finish(message=Message(file_cq))
+        except Exception:
+            pass
         os.remove(file)
-    except PartialDownloadFailedException as e:
-        downloader: JmDownloader = e.downloader
-        await jm_cmd.finish(f'下载出现部分失败, 下载失败的章节: {downloader.download_failed_photo}, 下载失败的图片: {downloader.download_failed_image}')
-    except RequestRetryAllFailException as e:
-        await jm_cmd.finish("下载全部失败")
+    except PartialDownloadFailedException:
+        await jm_cmd.finish(f'下载出现部分失败')
     except Exception as e:
         await jm_cmd.finish("出现错误：", e)
     

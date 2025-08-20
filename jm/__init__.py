@@ -56,7 +56,7 @@ async def handle_jm_command(bot: Bot, event: GroupMessageEvent | PrivateMessageE
     password = str(random.randint(100000, 999999999999))
     try:
         file = await async_compress(int(comic_id), password)
-        await bot.delete_msg(message_result["message_id"])
+        await bot.delete_msg(message_id=message_result["message_id"])
         file_cq = "[CQ:file,file=file://{}]".format(file)
         await jm_cmd.send(message=Message(file_cq))
         os.remove(file)

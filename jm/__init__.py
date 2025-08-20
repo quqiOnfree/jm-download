@@ -3,7 +3,7 @@ from nonebot.plugin import PluginMetadata
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import Message, GroupMessageEvent, PrivateMessageEvent
 from nonebot.params import CommandArg
-from nonebot.permission import Permission
+import asyncio
 
 import random
 import os
@@ -25,6 +25,11 @@ __plugin_meta__ = PluginMetadata(
 
 config = get_plugin_config(Config)
 allow_groups = config.allow_groups
+
+async def async_compress(jm_id: int, password: str):
+    """异步压缩漫画"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, compress, jm_id, password)
 
 jm_cmd = on_command("jm", aliases={"JM", "禁漫", "漫画"}, priority=10)
 @jm_cmd.handle()
@@ -48,7 +53,7 @@ async def handle_jm_command(event: GroupMessageEvent | PrivateMessageEvent, args
     
     password = str(random.randint(100000, 999999999999))
     try:
-        file = compress(int(comic_id), password)
+        file = await async_compress(int(comic_id), password)
         file_cq = "[CQ:file,file=file://{}]".format(file)
         try:
             await jm_cmd.finish(message=Message(file_cq))

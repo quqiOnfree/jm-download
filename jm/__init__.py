@@ -46,22 +46,25 @@ async def handle_jm_command(bot: Bot, event: GroupMessageEvent | PrivateMessageE
     
     # 验证输入
     if not comic_id:
-        await jm_cmd.finish("请输入漫画ID，例如：/jm 10000")
+        await jm_cmd.finish("请输入漫画ID，例如：/jm 10000\n返回的文件格式：jmid\"漫画ID\"pwd\"密码\".zip\n密码是随机生成的，解压时需要输入")
     
     if not comic_id.isdigit():
         await jm_cmd.finish("漫画ID必须是数字，例如：/jm 10000")
 
-    message_result = await jm_cmd.send(f"正在下载漫画 {comic_id}，请稍候...")
+    message_result = await jm_cmd.send(f"正在下载漫画{comic_id}，请稍候...")
+    message_id = message_result["message_id"]
     
-    password = str(random.randint(100000, 999999999999))
+    password = str(random.randint(1<<62, 1<<63))
     try:
         file = await async_compress(int(comic_id), password)
-        await bot.delete_msg(message_id=message_result["message_id"])
+        await bot.delete_msg(message_id=message_id)
         file_cq = "[CQ:file,file=file://{}]".format(file)
         await jm_cmd.send(message=Message(file_cq))
         os.remove(file)
     except PartialDownloadFailedException:
-        await jm_cmd.finish(f'下载出现部分失败')
+        await bot.delete_msg(message_id=message_id)
+        await jm_cmd.finish(f'漫画{comic_id}下载出现部分失败')
     except Exception as e:
+        await bot.delete_msg(message_id=message_id)
         await jm_cmd.finish("出现错误：", e)
     

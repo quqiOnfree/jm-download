@@ -153,9 +153,10 @@ def compress(jm_id, password):
         volume_size=os.stat(os.path.join("./pdftemp", album.name) + ".pdf").st_size // 3
     )
     shutil.rmtree("./" + album.name)
+    output_zip = f"jmid{jm_id}pwd{password}.zip"
     create_encrypted_zip(
         input_path="./temp",
-        output_zip=os.path.join("./", "pwd" + password) + ".zip",
+        output_zip=output_zip,
         password=password)
     for i in os.listdir("./temp"):
         if os.path.splitext(i)[0] == album.name + ".zip":
@@ -163,4 +164,4 @@ def compress(jm_id, password):
     for i in os.listdir("./pdftemp"):
         if os.path.splitext(i)[0] == album.name:
             os.remove(os.path.join("./pdftemp", i))
-    return os.path.abspath(os.path.join(os.getcwd(), "pwd" + password + ".zip"))
+    return os.path.abspath(os.path.join(os.getcwd(), output_zip))

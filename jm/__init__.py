@@ -1,7 +1,7 @@
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 from nonebot import on_command
-from nonebot.adapters.onebot.v11 import Message, GroupMessageEvent, PrivateMessageEvent
+from nonebot.adapters.onebot.v11 import Message, GroupMessageEvent, PrivateMessageEvent, Bot
 from nonebot.params import CommandArg
 import asyncio
 
@@ -33,7 +33,7 @@ async def async_compress(jm_id: int, password: str):
 
 jm_cmd = on_command("jm", aliases={"JM", "禁漫", "漫画"}, priority=10)
 @jm_cmd.handle()
-async def handle_jm_command(event: GroupMessageEvent | PrivateMessageEvent, args: Message = CommandArg()):
+async def handle_jm_command(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, args: Message = CommandArg()):
     # 群聊检查
     if isinstance(event, GroupMessageEvent):
         # if event.sender.role != "admin" and event.sender.role != "owner" and event.group_id not in ALLOW_GROUPS:
@@ -50,15 +50,15 @@ async def handle_jm_command(event: GroupMessageEvent | PrivateMessageEvent, args
     
     if not comic_id.isdigit():
         await jm_cmd.finish("漫画ID必须是数字，例如：/jm 10000")
+
+    message_result = await jm_cmd.send(f"正在下载漫画 {comic_id}，请稍候...")
     
     password = str(random.randint(100000, 999999999999))
     try:
         file = await async_compress(int(comic_id), password)
+        await bot.delete_msg(message_result["message_id"])
         file_cq = "[CQ:file,file=file://{}]".format(file)
-        try:
-            await jm_cmd.finish(message=Message(file_cq))
-        except Exception:
-            pass
+        await jm_cmd.send(message=Message(file_cq))
         os.remove(file)
     except PartialDownloadFailedException:
         await jm_cmd.finish(f'下载出现部分失败')

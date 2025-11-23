@@ -10,6 +10,7 @@ import os
 from jmcomic import *
 
 from .config import Config
+from .rule import check_allow_group, check_allow_user
 from .jm_download import compress
 
 __plugin_meta__ = PluginMetadata(
@@ -24,23 +25,25 @@ __plugin_meta__ = PluginMetadata(
 )
 
 config = get_plugin_config(Config)
-allow_groups = config.allow_groups
+unzip_password = config.unzip_password
 
-async def async_compress(jm_id: int, password: str):
+async def async_compress(jm_id: int, password: str | int):
     """异步压缩漫画"""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, compress, jm_id, password)
 
 jm_cmd = on_command("jm", aliases={"JM", "禁漫", "漫画"}, priority=10)
+
 @jm_cmd.handle()
 async def handle_jm_command(bot: Bot, event: GroupMessageEvent | PrivateMessageEvent, args: Message = CommandArg()):
-    # 群聊检查
-    if isinstance(event, GroupMessageEvent):
-        # if event.sender.role != "admin" and event.sender.role != "owner" and event.group_id not in ALLOW_GROUPS:
-        #     await jm_cmd.finish("你所在的群不允许使用此功能")
-        if str(event.group_id) not in allow_groups:
-            await jm_cmd.finish("你所在的群不允许使用此功能：{}".format(event.group_id))
-
+    group_id = event.group_id
+    user_id = event.user_id
+    # 检查权限
+    if isinstance(event, GroupMessageEvent) and not check_allow_group(str(group_id)):
+        return
+    if isinstance(event, PrivateMessageEvent) and not check_allow_user(str(user_id)):
+        return
+        
     # 获取用户输入的漫画ID
     comic_id = args.extract_plain_text().strip()
     
@@ -54,17 +57,25 @@ async def handle_jm_command(bot: Bot, event: GroupMessageEvent | PrivateMessageE
     message_result = await jm_cmd.send(f"正在下载漫画{comic_id}，请稍候...")
     message_id = message_result["message_id"]
     
-    password = str(random.randint(1<<62, 1<<63))
+    if unzip_password:
+        password = str(unzip_password)
+    else:
+        password = str(random.randint(1<<62, 1<<63))
+
     try:
         file = await async_compress(int(comic_id), password)
+        await jm_cmd.send(f'漫画:{comic_id}下载完成，正在发送\n解压密码：{password}')
         await bot.delete_msg(message_id=message_id)
+
         file_cq = "[CQ:file,file=file://{}]".format(file)
         await jm_cmd.send(message=Message(file_cq))
         os.remove(file)
+
     except PartialDownloadFailedException:
         await bot.delete_msg(message_id=message_id)
-        await jm_cmd.finish(f'漫画{comic_id}下载出现部分失败')
+        await jm_cmd.finish(f'漫画:{comic_id}下载出现部分失败')
+
     except Exception as e:
         await bot.delete_msg(message_id=message_id)
-        await jm_cmd.finish("出现错误：", e)
+        await jm_cmd.finish(f"出现错误：{e}")
     

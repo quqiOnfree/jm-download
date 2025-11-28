@@ -153,7 +153,7 @@ def compress(jm_id, password):
         volume_size=os.stat(os.path.join("./pdftemp", album.name) + ".pdf").st_size // 3
     )
     shutil.rmtree("./" + album.name)
-    output_zip = f"jmid{jm_id}pwd{password}.zip"
+    output_zip = f"{jm_id}.zip"
     create_encrypted_zip(
         input_path="./temp",
         output_zip=output_zip,
